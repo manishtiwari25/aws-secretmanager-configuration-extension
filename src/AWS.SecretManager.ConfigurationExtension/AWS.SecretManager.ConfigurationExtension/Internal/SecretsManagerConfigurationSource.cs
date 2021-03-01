@@ -5,7 +5,7 @@ using Microsoft.Extensions.Configuration;
 using System;
 using System.Collections.Generic;
 using System.Text;
-namespace AWS.SecretManager.ConfigurationExtension.Internal
+namespace SecretManager.ConfigurationExtension.Internal
 {
     public class SecretsManagerConfigurationSource : IConfigurationSource
     {

@@ -1,11 +1,11 @@
 ﻿using Amazon;
 using Amazon.Runtime;
 using Amazon.Runtime.CredentialManagement;
-using AWS.SecretManager.ConfigurationExtension.Internal;
+using SecretManager.ConfigurationExtension.Internal;
 using Microsoft.Extensions.Configuration;
 using System;
 
-namespace AWS.SecretManager.ConfigurationExtension
+namespace SecretManager.ConfigurationExtension
 {
     public static class Extension
     {

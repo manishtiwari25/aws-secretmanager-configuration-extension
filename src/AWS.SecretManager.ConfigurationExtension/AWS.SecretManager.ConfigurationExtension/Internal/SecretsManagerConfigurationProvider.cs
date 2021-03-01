@@ -9,7 +9,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace AWS.SecretManager.ConfigurationExtension.Internal
+namespace SecretManager.ConfigurationExtension.Internal
 {
     public class SecretsManagerConfigurationProvider : ConfigurationProvider
     {
