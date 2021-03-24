@@ -15,10 +15,14 @@ namespace SecretManager.ConfigurationExtension.Internal
     {
         private readonly IAmazonSecretsManager _client;
         private HashSet<(string, string)> _loadedValues = new HashSet<(string, string)>();
+        private readonly string _enviroment;
+        private readonly string _project;
 
-        public SecretsManagerConfigurationProvider(IAmazonSecretsManager client)
+        public SecretsManagerConfigurationProvider(IAmazonSecretsManager client, string environment, string project)
         {
             _client = client;
+            _enviroment = environment;
+            _project = project;
         }
         public override void Load()
         {
@@ -47,7 +51,7 @@ namespace SecretManager.ConfigurationExtension.Internal
                     {
                         foreach (var property in jObject.Properties())
                         {
-                            var secretKey = $"{prefix}";
+                            var secretKey = $"{prefix}"+"/"+property.Path;
 
                             if (property.Value.HasValues)
                             {
@@ -80,32 +84,39 @@ namespace SecretManager.ConfigurationExtension.Internal
         async Task<HashSet<(string, string)>> FetchConfigurationAsync(CancellationToken cancellationToken)
         {
             var secrets = await FetchAllSecretsAsync(cancellationToken).ConfigureAwait(false);
+            var Prefix = _enviroment + "/" + _project;
+            
             var configuration = new HashSet<(string, string)>();
             foreach (var secret in secrets)
             {
+                if(secret.Name==Prefix)
                 try
                 {
                     var secretValue = await _client.GetSecretValueAsync(new GetSecretValueRequest { SecretId = secret.ARN }, cancellationToken).ConfigureAwait(false);
 
                     var secretString = secretValue.SecretString;
-
-                    if (secretString is null)
-                        continue;
-
-                    if (IsJson(secretString))
+                   
                     {
-                        var obj = JToken.Parse(secretString);
+                        if (secretString is null)
+                            continue;
 
-                        var values = ExtractValues(obj, secret.Name);
-
-                        foreach (var (key, value) in values)
+                        if (IsJson(secretString))
                         {
-                            configuration.Add((key, value));
+                            var obj = JToken.Parse(secretString);
+
+                            var values = ExtractValues(obj, secret.Name);
+
+
+                            foreach (var (key, value) in values)
+                            {
+
+                                configuration.Add((key, value));
+                            }
                         }
-                    }
-                    else
-                    {
-                        configuration.Add((secret.Name, secretString));
+                        else
+                        {
+                            configuration.Add((secret.Name, secretString));
+                        }
                     }
                 }
                 catch (ResourceNotFoundException e)
