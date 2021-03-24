@@ -51,7 +51,7 @@ namespace SecretManager.ConfigurationExtension.Internal
                     {
                         foreach (var property in jObject.Properties())
                         {
-                            var secretKey = $"{prefix}"+"/"+property.Path;
+                            var secretKey = $"{prefix}" + "/" + property.Path;
 
                             if (property.Value.HasValues)
                             {
@@ -85,38 +85,34 @@ namespace SecretManager.ConfigurationExtension.Internal
         {
             var secrets = await FetchAllSecretsAsync(cancellationToken).ConfigureAwait(false);
             var Prefix = _enviroment + "/" + _project;
-            
+
             var configuration = new HashSet<(string, string)>();
-            foreach (var secret in secrets)
+            var secret = await FetSecretValueAsync(Prefix);
             {
-                if(secret.Name==Prefix)
+
                 try
                 {
                     var secretValue = await _client.GetSecretValueAsync(new GetSecretValueRequest { SecretId = secret.ARN }, cancellationToken).ConfigureAwait(false);
 
-                    var secretString = secretValue.SecretString;
-                   
+                    var secretString = secret.SecretString;
                     {
-                        if (secretString is null)
-                            continue;
-
-                        if (IsJson(secretString))
-                        {
-                            var obj = JToken.Parse(secretString);
-
-                            var values = ExtractValues(obj, secret.Name);
-
-
-                            foreach (var (key, value) in values)
+                            if (IsJson(secretString))
                             {
+                                var obj = JToken.Parse(secretString);
 
-                                configuration.Add((key, value));
+                                var values = ExtractValues(obj, secret.Name);
+
+
+                                foreach (var (key, value) in values)
+                                {
+
+                                    configuration.Add((key, value));
+                                }
                             }
-                        }
-                        else
-                        {
-                            configuration.Add((secret.Name, secretString));
-                        }
+                            else
+                            {
+                                configuration.Add((secret.Name, secretString));
+                            }
                     }
                 }
                 catch (ResourceNotFoundException e)
@@ -155,6 +151,28 @@ namespace SecretManager.ConfigurationExtension.Internal
         {
             _loadedValues = await FetchConfigurationAsync(default).ConfigureAwait(false);
             SetData(_loadedValues);
+        }
+        async Task<GetSecretValueResponse> FetSecretValueAsync(string secretname)
+        {
+            GetSecretValueRequest request = new GetSecretValueRequest();
+            request.SecretId = secretname;
+            request.VersionStage = "AWSCURRENT"; // VersionStage defaults to AWSCURRENT if unspecified.
+
+
+
+            GetSecretValueResponse response = null;
+            // In this sample we only handle the specific exceptions for the 'GetSecretValue' API.
+            // See https://docs.aws.amazon.com/secretsmanager/latest/apireference/API_GetSecretValue.html
+            // We rethrow the exception by default
+            try
+            {
+                response =await _client.GetSecretValueAsync(request);
+                return response;
+            }
+            catch (Exception e)
+            {
+                throw e;
+            }
         }
     }
 }
