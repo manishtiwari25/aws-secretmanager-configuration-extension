@@ -10,20 +10,20 @@ namespace SecretManager.ConfigurationExtension
     public static class Extension
     {
         public static IConfigurationBuilder AddSecretsManager(this IConfigurationBuilder configurationBuilder, string region,
-           string accessKeyId, string accessKeySecret,string environment=null,string project=null)
+           string accessKeyId, string accessKeySecret, string environment = null, string project = null)
         {
             var config = configurationBuilder.Build();
-            if(string.IsNullOrEmpty(environment))
-                environment=config["ASPNETCORE_ENVIRONMENT"].ToLower();
+            if (string.IsNullOrEmpty(environment))
+                environment = config["ASPNETCORE_ENVIRONMENT"].ToLower();
             if (string.IsNullOrEmpty(project))
                 project = config["project"];
-           
-            var source = new SecretsManagerConfigurationSource(accessKeyId, accessKeySecret, region,environment,project);
+
+            var source = new SecretsManagerConfigurationSource(accessKeyId, accessKeySecret, region, environment, project);
             configurationBuilder.Add(source);
 
             return configurationBuilder;
         }
-        public static IConfigurationBuilder AddSecretsManager(this IConfigurationBuilder configurationBuilder, SharedCredentialsFile credentials, RegionEndpoint? region = null,string environment=null,string project=null)
+        public static IConfigurationBuilder AddSecretsManager(this IConfigurationBuilder configurationBuilder, SharedCredentialsFile credentials, RegionEndpoint region = null, string environment = null, string project = null)
         {
             if (region is null)
             {
@@ -37,7 +37,7 @@ namespace SecretManager.ConfigurationExtension
             if (credentials.TryGetProfile(SharedCredentialsFile.DefaultProfileName, out var y))
             {
                 var creds = y.GetAWSCredentials(y.CredentialProfileStore);
-                var source = new SecretsManagerConfigurationSource(region, creds,environment,project);
+                var source = new SecretsManagerConfigurationSource(region, creds, environment, project);
                 configurationBuilder.Add(source);
 
                 return configurationBuilder;

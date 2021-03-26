@@ -14,7 +14,7 @@ namespace SecretManager.ConfigurationExtension.Internal
     public class SecretsManagerConfigurationProvider : ConfigurationProvider
     {
         private readonly IAmazonSecretsManager _client;
-        private HashSet<(string, string)> _loadedValues = new HashSet<(string, string)>();
+        private HashSet<(string, string)> _loadedValues = new();
         private readonly string _enviroment;
         private readonly string _project;
 
@@ -83,7 +83,6 @@ namespace SecretManager.ConfigurationExtension.Internal
         }
         async Task<HashSet<(string, string)>> FetchConfigurationAsync(CancellationToken cancellationToken)
         {
-            var secrets = await FetchAllSecretsAsync(cancellationToken).ConfigureAwait(false);
             var prefix = _enviroment + "/" + _project;
 
             var configuration = new HashSet<(string, string)>();
@@ -120,25 +119,25 @@ namespace SecretManager.ConfigurationExtension.Internal
 
             return configuration;
         }
-        async Task<IReadOnlyList<SecretListEntry>> FetchAllSecretsAsync(CancellationToken cancellationToken)
-        {
-            var response = default(ListSecretsResponse);
+        //async Task<IReadOnlyList<SecretListEntry>> FetchAllSecretsAsync(CancellationToken cancellationToken)
+        //{
+        //    var response = default(ListSecretsResponse);
 
-            var result = new List<SecretListEntry>();
+        //    var result = new List<SecretListEntry>();
 
-            do
-            {
-                var nextToken = response?.NextToken;
+        //    do
+        //    {
+        //        var nextToken = response?.NextToken;
 
-                var request = new ListSecretsRequest() { NextToken = nextToken };
+        //        var request = new ListSecretsRequest() { NextToken = nextToken };
 
-                response = await _client.ListSecretsAsync(request, cancellationToken).ConfigureAwait(false);
+        //        response = await _client.ListSecretsAsync(request, cancellationToken).ConfigureAwait(false);
 
-                result.AddRange(response.SecretList);
-            } while (response.NextToken != null);
+        //        result.AddRange(response.SecretList);
+        //    } while (response.NextToken != null);
 
-            return result;
-        }
+        //    return result;
+        //}
 
         void SetData(IEnumerable<(string, string)> values)
         {
