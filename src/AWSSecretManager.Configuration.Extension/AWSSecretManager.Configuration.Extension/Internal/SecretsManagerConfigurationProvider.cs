@@ -1,26 +1,24 @@
 ﻿using Amazon.SecretsManager;
+using Amazon.SecretsManager.Extensions.Caching;
 using Amazon.SecretsManager.Model;
 using Microsoft.Extensions.Configuration;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading;
 using System.Threading.Tasks;
 
 namespace SecretManager.ConfigurationExtension.Internal
 {
     public class SecretsManagerConfigurationProvider : ConfigurationProvider
     {
-        private readonly IAmazonSecretsManager _client;
-        private HashSet<(string, string)> _loadedValues = new();
+        private readonly SecretsManagerCache _cache;
         private readonly string _enviroment;
         private readonly string _project;
 
-        public SecretsManagerConfigurationProvider(IAmazonSecretsManager client, string environment, string project)
+        public SecretsManagerConfigurationProvider(IAmazonSecretsManager client, string environment, string project, ushort cacheSize = 1024, uint cacheItemTTL = 3600000u)
         {
-            _client = client;
+            _cache = new SecretsManagerCache(client);
             _enviroment = environment;
             _project = project;
         }
@@ -81,7 +79,7 @@ namespace SecretManager.ConfigurationExtension.Internal
                     }
             }
         }
-        async Task<HashSet<(string, string)>> FetchConfigurationAsync(CancellationToken cancellationToken)
+        async Task<HashSet<(string, string)>> FetchConfigurationAsync()
         {
             var prefix = _enviroment + "/" + _project;
 
@@ -89,28 +87,25 @@ namespace SecretManager.ConfigurationExtension.Internal
 
             try
             {
-                var secretValue = await _client.GetSecretValueAsync(new GetSecretValueRequest { SecretId = prefix }, cancellationToken).ConfigureAwait(false);
-
-                var secretString = secretValue.SecretString;
+                var secretString = await _cache.GetSecretString(prefix).ConfigureAwait(false);
+                if (IsJson(secretString))
                 {
-                    if (IsJson(secretString))
+                    var obj = JToken.Parse(secretString);
+
+                    var values = ExtractValues(obj, prefix);
+
+
+                    foreach (var (key, value) in values)
                     {
-                        var obj = JToken.Parse(secretString);
 
-                        var values = ExtractValues(obj, secretValue.Name);
-
-
-                        foreach (var (key, value) in values)
-                        {
-
-                            configuration.Add((key, value));
-                        }
-                    }
-                    else
-                    {
-                        configuration.Add((secretValue.Name, secretString));
+                        configuration.Add((key, value));
                     }
                 }
+                else
+                {
+                    configuration.Add((prefix, secretString));
+                }
+
             }
             catch (ResourceNotFoundException e)
             {
@@ -119,25 +114,6 @@ namespace SecretManager.ConfigurationExtension.Internal
 
             return configuration;
         }
-        //async Task<IReadOnlyList<SecretListEntry>> FetchAllSecretsAsync(CancellationToken cancellationToken)
-        //{
-        //    var response = default(ListSecretsResponse);
-
-        //    var result = new List<SecretListEntry>();
-
-        //    do
-        //    {
-        //        var nextToken = response?.NextToken;
-
-        //        var request = new ListSecretsRequest() { NextToken = nextToken };
-
-        //        response = await _client.ListSecretsAsync(request, cancellationToken).ConfigureAwait(false);
-
-        //        result.AddRange(response.SecretList);
-        //    } while (response.NextToken != null);
-
-        //    return result;
-        //}
 
         void SetData(IEnumerable<(string, string)> values)
         {
@@ -146,7 +122,7 @@ namespace SecretManager.ConfigurationExtension.Internal
 
         async Task LoadAsync()
         {
-            _loadedValues = await FetchConfigurationAsync(default).ConfigureAwait(false);
+            var _loadedValues = await FetchConfigurationAsync().ConfigureAwait(false);
             SetData(_loadedValues);
         }
 

@@ -1,8 +1,8 @@
 ﻿using Amazon;
-using Amazon.Runtime;
 using Amazon.Runtime.CredentialManagement;
-using SecretManager.ConfigurationExtension.Internal;
+using AWSSecretManager.Configuration.Extension.Internal;
 using Microsoft.Extensions.Configuration;
+using SecretManager.ConfigurationExtension.Internal;
 using System;
 
 namespace SecretManager.ConfigurationExtension
@@ -12,11 +12,10 @@ namespace SecretManager.ConfigurationExtension
         public static IConfigurationBuilder AddSecretsManager(this IConfigurationBuilder configurationBuilder, string region,
            string accessKeyId, string accessKeySecret, string environment = null, string project = null)
         {
-            var config = configurationBuilder.Build();
             if (string.IsNullOrEmpty(environment))
-                environment = config["ASPNETCORE_ENVIRONMENT"].ToLower();
+                environment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT").ToLower();
             if (string.IsNullOrEmpty(project))
-                project = config["project"];
+                project = Environment.GetEnvironmentVariable("project");
 
             var source = new SecretsManagerConfigurationSource(accessKeyId, accessKeySecret, region, environment, project);
             configurationBuilder.Add(source);
@@ -29,11 +28,11 @@ namespace SecretManager.ConfigurationExtension
             {
                 region = RegionEndpoint.USEast2;
             }
-            var config = configurationBuilder.Build();
+
             if (string.IsNullOrEmpty(environment))
-                environment = config["ASPNETCORE_ENVIRONMENT"].ToLower();
+                environment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT").ToLower();
             if (string.IsNullOrEmpty(project))
-                project = config["project"];
+                project = Environment.GetEnvironmentVariable("project");
             if (credentials.TryGetProfile(SharedCredentialsFile.DefaultProfileName, out var y))
             {
                 var creds = y.GetAWSCredentials(y.CredentialProfileStore);
@@ -42,7 +41,7 @@ namespace SecretManager.ConfigurationExtension
 
                 return configurationBuilder;
             }
-            throw new Exception("AWS default Credentials not found, Please check https://docs.aws.amazon.com/toolkit-for-visual-studio/latest/user-guide/credentials.html");
+            throw new CustomException("AWS default Credentials not found, Please check https://docs.aws.amazon.com/toolkit-for-visual-studio/latest/user-guide/credentials.html");
         }
 
     }
