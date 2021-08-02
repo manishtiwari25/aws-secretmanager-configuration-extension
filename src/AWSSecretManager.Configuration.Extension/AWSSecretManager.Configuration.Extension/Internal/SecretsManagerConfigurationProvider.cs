@@ -2,10 +2,10 @@
 using Amazon.SecretsManager.Extensions.Caching;
 using Amazon.SecretsManager.Model;
 using Microsoft.Extensions.Configuration;
-using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json;
 using System.Threading.Tasks;
 
 namespace SecretManager.ConfigurationExtension.Internal
@@ -33,16 +33,16 @@ namespace SecretManager.ConfigurationExtension.Internal
         }
         private static bool IsJson(string str) => str.StartsWith("[") || str.StartsWith("{");
 
-        IEnumerable<(string key, string value)> ExtractValues(JToken token, string prefix)
+        IEnumerable<(string key, string value)> ExtractValues(JsonElement jsonElement, string prefix)
         {
-            switch (token)
+            switch (jsonElement.ValueKind)
             {
-                case JArray array:
+                case JsonValueKind.Array:
                     {
-                        for (var i = 0; i < array.Count; i++)
+                        for (var i = 0; i < jsonElement.GetArrayLength(); i++)
                         {
                             var secretKey = $"{prefix}";
-                            foreach (var (key, value) in ExtractValues(array[i], secretKey))
+                            foreach (var (key, value) in ExtractValues(jsonElement[i], secretKey))
                             {
                                 yield return (key, value);
                             }
@@ -50,13 +50,12 @@ namespace SecretManager.ConfigurationExtension.Internal
 
                         break;
                     }
-                case JObject jObject:
+                case JsonValueKind.Object:
                     {
-                        foreach (var property in jObject.Properties())
+                        foreach (var property in jsonElement.EnumerateObject())
                         {
-                            var secretKey = $"{prefix}" + "/" + property.Path;
-
-                            if (property.Value.HasValues)
+                            var secretKey = $"{prefix}" + "/" + property.Name;
+                            if (property.Value.ValueKind != JsonValueKind.Null || property.Value.ValueKind != JsonValueKind.Undefined)
                             {
                                 foreach (var (key, value) in ExtractValues(property.Value, secretKey))
                                 {
@@ -72,9 +71,9 @@ namespace SecretManager.ConfigurationExtension.Internal
 
                         break;
                     }
-                case JValue jValue:
+                case JsonValueKind.String:
                     {
-                        var value = jValue.Value.ToString();
+                        var value = jsonElement.GetString();
                         yield return (prefix, value);
                         break;
                     }
@@ -95,9 +94,8 @@ namespace SecretManager.ConfigurationExtension.Internal
                 var secretString = await _cache.GetSecretString(prefix).ConfigureAwait(false);
                 if (IsJson(secretString))
                 {
-                    var obj = JToken.Parse(secretString);
-
-                    var values = ExtractValues(obj, prefix);
+                    var obj = JsonDocument.Parse(secretString);
+                    var values = ExtractValues(obj.RootElement, prefix);
 
 
                     foreach (var (key, value) in values)
