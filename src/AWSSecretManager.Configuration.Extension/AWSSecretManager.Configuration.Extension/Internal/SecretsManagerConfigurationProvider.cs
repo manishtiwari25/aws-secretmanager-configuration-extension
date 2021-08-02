@@ -18,7 +18,12 @@ namespace SecretManager.ConfigurationExtension.Internal
 
         public SecretsManagerConfigurationProvider(IAmazonSecretsManager client, string environment, string project, ushort cacheSize = 1024, uint cacheItemTTL = 3600000u)
         {
-            _cache = new SecretsManagerCache(client);
+            var config = new SecretCacheConfiguration
+            {
+                CacheItemTTL = cacheItemTTL,
+                MaxCacheSize = cacheSize
+            };
+            _cache = new SecretsManagerCache(client, config);
             _enviroment = environment;
             _project = project;
         }
