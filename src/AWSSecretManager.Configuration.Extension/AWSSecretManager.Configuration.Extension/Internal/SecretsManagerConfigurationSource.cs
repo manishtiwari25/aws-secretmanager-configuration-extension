@@ -1,46 +1,40 @@
 ﻿using Amazon;
-using Amazon.Runtime;
 using Amazon.SecretsManager;
 using Microsoft.Extensions.Configuration;
 using System;
-using System.Collections.Generic;
-using System.Text;
 namespace SecretManager.ConfigurationExtension.Internal
 {
     public class SecretsManagerConfigurationSource : IConfigurationSource
     {
         private readonly AmazonSecretsManagerClient _client;
-        private readonly string _enviroment;
-        private readonly string _project;
-        public SecretsManagerConfigurationSource(string accessKeyId, string accessKeySecret, string region,string environment, string project)
+        private readonly ushort _cacheSize;
+        private readonly uint _cacheItemTTL;
+
+        /// <summary>
+        /// Adds an <see cref="IConfigurationProvider"/> that reads configuration values from the AWS Secret Manager.
+        /// </summary>
+        /// <param name="accessKeyId">AWS Access Key ID</param>
+        /// <param name="accessKeySecret">AWS Secret Access Key</param>
+        /// <param name="region"> The system name of the service like "us-west-1". The default value is us-east-2</param>
+        /// <param name="cacheSize">The maximum number of items the Cache can contain before evicting using LRU. The default value is 1024.</param>
+        /// <param name="cacheItemTTL">The TTL of a Cache item in milliseconds.The default value is 3600000 ms, or 1 hour</param>
+        public SecretsManagerConfigurationSource(string accessKeyId, string accessKeySecret, string region = "us-east-2", ushort cacheSize = 1024, uint cacheItemTTL = 3600000u)
         {
-            if (string.IsNullOrEmpty(region))
-            {
-                region = RegionEndpoint.USEast2.SystemName;
-            }
             var config = new AmazonSecretsManagerConfig
             {
                 RegionEndpoint = RegionEndpoint.GetBySystemName(region)
             };
-            _enviroment = environment;
-            _project = project;
             _client = new AmazonSecretsManagerClient(accessKeyId, accessKeySecret, config);
+            _cacheSize = cacheSize;
+            _cacheItemTTL = cacheItemTTL;
         }
 
-        public SecretsManagerConfigurationSource(RegionEndpoint region, AWSCredentials credentials,string environment, string project)
-        {
-            var config = new AmazonSecretsManagerConfig
-            {
-                RegionEndpoint = region
-            };
-            _enviroment = environment;
-            _project = project;
-            _client = new AmazonSecretsManagerClient(credentials, config);
-        }
 
         public IConfigurationProvider Build(IConfigurationBuilder builder)
         {
-            return new SecretsManagerConfigurationProvider(_client,_enviroment,_project);
+            var environment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
+            var project = Environment.GetEnvironmentVariable("ASPNETCORE_PROJECT");
+            return new SecretsManagerConfigurationProvider(_client, environment, project, _cacheSize, _cacheItemTTL);
         }
     }
 }

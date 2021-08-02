@@ -2,6 +2,7 @@
 
 namespace SecretManager.ConfigurationExtension.Internal
 {
+    [Serializable]
     public class MissingSecretValueException : Exception
     {
         public MissingSecretValueException(string errorMessage, string secretName, string secretArn, Exception exception) : base(errorMessage, exception)
