@@ -5,5 +5,5 @@ This repository contains a provider for [Microsoft.Extensions.Configuration](htt
 ## Cloning
 
 ```sh
-git clone https://github.com/manishtiwari25/smart-door.git
+git clone https://github.com/manishtiwari25/aws-secretmanager-configuration-extension.git
 ```
