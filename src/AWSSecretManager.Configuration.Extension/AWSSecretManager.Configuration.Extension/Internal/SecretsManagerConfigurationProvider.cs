@@ -6,25 +6,32 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace SecretManager.ConfigurationExtension.Internal
 {
-    public class SecretsManagerConfigurationProvider : ConfigurationProvider
+    public class SecretsManagerConfigurationProvider : ConfigurationProvider, IDisposable
     {
         private readonly SecretsManagerCache _cache;
         private readonly string _enviroment;
         private readonly string _project;
+        private readonly uint _cacheItemTTL;
+
+
+        private HashSet<(string, string)> _loadedValues = new();
+        private Task? _pollingTask;
 
         public SecretsManagerConfigurationProvider(IAmazonSecretsManager client, string environment, string project, ushort cacheSize = 1024, uint cacheItemTTL = 3600000u)
         {
+            _cacheItemTTL = cacheItemTTL;
             var config = new SecretCacheConfiguration
             {
                 CacheItemTTL = cacheItemTTL,
-                MaxCacheSize = cacheSize
+                MaxCacheSize = cacheSize,
             };
             _cache = new SecretsManagerCache(client, config);
-            _enviroment = environment;
+            _enviroment = environment.ToLower().Trim();
             _project = project;
         }
         public override void Load()
@@ -33,6 +40,26 @@ namespace SecretManager.ConfigurationExtension.Internal
         }
         private static bool IsJson(string str) => str.StartsWith("[") || str.StartsWith("{");
 
+        private async Task PollForChangesAsync()
+        {
+
+            await Task.Delay((int)_cacheItemTTL).ConfigureAwait(false);
+
+            await ReloadAsync().ConfigureAwait(false);
+
+
+        }
+        private async Task ReloadAsync()
+        {
+            var oldValues = _loadedValues;
+            var newValues = await FetchConfigurationAsync().ConfigureAwait(false);
+
+            if (!oldValues.SetEquals(newValues))
+            {
+                _loadedValues = newValues;
+                SetData(_loadedValues, triggerReload: true);
+            }
+        }
         IEnumerable<(string key, string value)> ExtractValues(JsonElement jsonElement, string prefix)
         {
             switch (jsonElement.ValueKind)
@@ -77,6 +104,12 @@ namespace SecretManager.ConfigurationExtension.Internal
                         yield return (prefix, value);
                         break;
                     }
+                case JsonValueKind.Number:
+                    {
+                        var value = jsonElement.GetInt32();
+                        yield return (prefix, value.ToString());
+                        break;
+                    }
                 default:
                     {
                         throw new FormatException("unsupported json token");
@@ -88,7 +121,6 @@ namespace SecretManager.ConfigurationExtension.Internal
             var prefix = _enviroment + "/" + _project;
 
             var configuration = new HashSet<(string, string)>();
-
             try
             {
                 var secretString = await _cache.GetSecretString(prefix).ConfigureAwait(false);
@@ -118,16 +150,33 @@ namespace SecretManager.ConfigurationExtension.Internal
             return configuration;
         }
 
-        void SetData(IEnumerable<(string, string)> values)
+        void SetData(IEnumerable<(string, string)> values, bool triggerReload)
         {
             Data = values.ToDictionary(x => x.Item1, x => x.Item2, StringComparer.InvariantCultureIgnoreCase);
+
+            if (triggerReload)
+            {
+                OnReload();
+            }
         }
 
         async Task LoadAsync()
         {
-            var _loadedValues = await FetchConfigurationAsync().ConfigureAwait(false);
-            SetData(_loadedValues);
+            _loadedValues = await FetchConfigurationAsync().ConfigureAwait(false);
+            SetData(_loadedValues, false);
+            _pollingTask = PollForChangesAsync();
         }
-
+        public void Dispose()
+        {
+            try
+            {
+                _pollingTask?.GetAwaiter().GetResult();
+            }
+            catch
+            {
+                //Ignore this
+            }
+            _pollingTask = null;
+        }
     }
 }

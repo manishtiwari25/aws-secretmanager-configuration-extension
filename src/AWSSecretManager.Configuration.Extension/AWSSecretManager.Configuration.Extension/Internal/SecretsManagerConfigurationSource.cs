@@ -1,5 +1,6 @@
 ﻿using Amazon;
 using Amazon.SecretsManager;
+using AWSSecretManager.Configuration.Extension.Internal;
 using Microsoft.Extensions.Configuration;
 using System;
 namespace SecretManager.ConfigurationExtension.Internal
@@ -34,6 +35,10 @@ namespace SecretManager.ConfigurationExtension.Internal
         {
             var environment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
             var project = Environment.GetEnvironmentVariable("ASPNETCORE_PROJECT");
+            if (string.IsNullOrEmpty(project)) 
+            {
+                throw new CustomException("Project name is missing from environment variable, please add ASPNETCORE_PROJECT");
+            }
             return new SecretsManagerConfigurationProvider(_client, environment, project, _cacheSize, _cacheItemTTL);
         }
     }
