@@ -60,7 +60,7 @@ namespace SecretManager.ConfigurationExtension.Internal
                 SetData(_loadedValues, triggerReload: true);
             }
         }
-        IEnumerable<(string key, string value)> ExtractValues(JsonElement jsonElement, string prefix)
+        IEnumerable<(string key, string value)> ExtractValues(JsonElement jsonElement, string secretKey)
         {
             switch (jsonElement.ValueKind)
             {
@@ -68,7 +68,6 @@ namespace SecretManager.ConfigurationExtension.Internal
                     {
                         for (var i = 0; i < jsonElement.GetArrayLength(); i++)
                         {
-                            var secretKey = $"{prefix}";
                             foreach (var (key, value) in ExtractValues(jsonElement[i], secretKey))
                             {
                                 yield return (key, value);
@@ -81,7 +80,7 @@ namespace SecretManager.ConfigurationExtension.Internal
                     {
                         foreach (var property in jsonElement.EnumerateObject())
                         {
-                            var secretKey = $"{prefix}" + "/" + property.Name;
+                            secretKey = property.Name;
                             if (property.Value.ValueKind != JsonValueKind.Null || property.Value.ValueKind != JsonValueKind.Undefined)
                             {
                                 foreach (var (key, value) in ExtractValues(property.Value, secretKey))
@@ -101,13 +100,13 @@ namespace SecretManager.ConfigurationExtension.Internal
                 case JsonValueKind.String:
                     {
                         var value = jsonElement.GetString();
-                        yield return (prefix, value);
+                        yield return (secretKey, value);
                         break;
                     }
                 case JsonValueKind.Number:
                     {
                         var value = jsonElement.GetInt32();
-                        yield return (prefix, value.ToString());
+                        yield return (secretKey, value.ToString());
                         break;
                     }
                 default:
