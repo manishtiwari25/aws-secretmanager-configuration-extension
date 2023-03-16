@@ -16,13 +16,13 @@ jobs:
       with:  
         dotnet-version: 6.0.x  
     - name: Install dependencies  
-      run: dotnet restore src/AWSSecretManager.Configuration.Extension/AWSSecretManager.Configuration.Extension
+      run: dotnet restore src/AWSSecretManager.Configuration.Extension
     - name: Build  
-      run: dotnet build --configuration Release --no-restore  src/AWSSecretManager.Configuration.Extension/AWSSecretManager.Configuration.Extension
+      run: dotnet build --configuration Release --no-restore  src/AWSSecretManager.Configuration.Extension
     - name: Test  
-      run: dotnet test --no-restore --verbosity normal  src/AWSSecretManager.Configuration.Extension/AWSSecretManager.Configuration.Extension
+      run: dotnet test --no-restore --verbosity normal  src/AWSSecretManager.Configuration.Extension
     - name: Publish  
       uses: brandedoutcast/publish-nuget@v2.5.2  
       with:   
-        PROJECT_FILE_PATH: src/AWSSecretManager.Configuration.Extension/AWSSecretManager.Configuration.Extension/AWSSecretManager.Configuration.Extension.csproj  
+        PROJECT_FILE_PATH: src/AWSSecretManager.Configuration.Extension/AWSSecretManager.Configuration.Extension.csproj  
         NUGET_KEY: ${{secrets.NUGET_API_KEY}} 
